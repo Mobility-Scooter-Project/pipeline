@@ -1,4 +1,6 @@
 # Pipelines
 ## setup
-pip install requirement.txt
+```
+pip install requirements.txt
 pip install tensorflow
+```
