@@ -10,12 +10,12 @@ HEAD_WIDTH, HEAD_HEIGHT = 180, 200
 
 
 class FacePatch:
-    def __init__(self, head_src="joe.png", offset_x=-10, offset_y=20):
+    def __init__( self, head_src, head_width, head_height, offset_x, offset_y):
         self.neck_model = BodypixNeck()
         self.prior_neck_position = 0, 0
         self.offset_x = offset_x
         self.offset_y = offset_y
-        self.head = cv2.resize(cv2.imread(head_src, cv2.IMREAD_UNCHANGED), (HEAD_HEIGHT, HEAD_WIDTH))
+        self.head = cv2.resize(cv2.imread(head_src, cv2.IMREAD_UNCHANGED), (head_height, head_width))
 
     def process(self, inputs):
         frame = cv2.resize(inputs, (PROCESS_WIDTH, PROCESS_HEIGHT))
