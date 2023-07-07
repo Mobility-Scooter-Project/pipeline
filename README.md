@@ -8,3 +8,6 @@ Follow the setup in the main repo if pipeline is used as a submodule.
 pip install requirements.txt
 pip install tensorflow
 ```
+
+## models
+Download model files on GitHub releases ~
