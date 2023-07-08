@@ -11,3 +11,5 @@ pip install tensorflow
 
 ## models
 Download model files on GitHub releases ~
+## pose estimation references
+- https://github.com/tensorflow/tfjs-models/blob/master/pose-detection/README.md
