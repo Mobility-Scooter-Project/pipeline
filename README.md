@@ -8,3 +8,5 @@ Follow the setup in the main repo if pipeline is used as a submodule.
 pip install requirements.txt
 pip install tensorflow
 ```
+## pose estimation references
+- https://github.com/tensorflow/tfjs-models/blob/master/pose-detection/README.md
