@@ -1,6 +1,6 @@
 # mediapipe
 # inputs: image
-# output: list[(float, float, float)] -> 9 landmarks
+# output: list[(float, float, float)] -> 9 3d-landmarks
 
 import mediapipe as mp
 
