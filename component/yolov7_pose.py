@@ -46,7 +46,8 @@ class Yolov7Pose:
         image = transforms.ToTensor()(image)
         image = torch.tensor(np.array([image.numpy()]))
 
-        output, _ = self.model(image)
+        with torch.no_grad():
+            output, _ = self.model(image)
         output = non_max_suppression_kpt(output, 0.25, 0.65, nc=self.model.yaml['nc'], nkpt=self.model.yaml['nkpt'], kpt_label=True)
         with torch.no_grad():
             output = output_to_keypoint(output)
