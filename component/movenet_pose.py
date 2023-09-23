@@ -4,10 +4,6 @@
 
 import tensorflow as tf
 import tensorflow_hub as hub
-import numpy as np
-import cv2
-
-import inspect
 
 landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 '''
