@@ -6,9 +6,9 @@
 import torch
 from torchvision import transforms
 import numpy as np
-from ..utils.datasets import letterbox
-from ..utils.general import non_max_suppression_kpt
-from ..utils.plots import output_to_keypoint
+from ..utils.yolov7.datasets import letterbox
+from ..utils.yolov7.general import non_max_suppression_kpt
+from ..utils.yolov7.plots import output_to_keypoint
 
 landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 '''
@@ -34,7 +34,7 @@ landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 class Yolov7Pose:
     def __init__(self):
         device = torch.device("cpu")
-        weigths = torch.load('pipeline/yolov7-w6-pose.pt', map_location=device)
+        weigths = torch.load('assets/yolov7-w6-pose.pt', map_location=device)
         self.model = weigths['model']
         _ = self.model.float().eval()
         # if torch.cuda.is_available():

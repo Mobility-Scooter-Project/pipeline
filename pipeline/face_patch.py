@@ -1,12 +1,23 @@
-import cv2
 import numpy as np
-from ..component.bp_neck import BodypixNeck
+import cv2
+import sys
+import os
+from .pipe import VideoInput, VideoOutput, MediapipePose, CSVOutput, MovenetPose, BodypixNeck
 
+
+# mp_drawing = mp.solutions.drawing_utils
+# mp_drawing_styles = mp.solutions.drawing_styles
+# mp_pose = mp.solutions.pose
+
+WINDOW_NAME = "Face Patch"
+SHOW_VIDEO = True
+BG_COLOR = (192, 192, 192) # gray
+MASK_COLOR = (255, 255, 255) # white
+POINT_COLOR = (0, 0, 0) # black
 PROCESS_WIDTH, PROCESS_HEIGHT = 640, 360
 WINDOW_WIDTH, WINDOW_HEIGHT = 640, 540
 HEAD_WIDTH, HEAD_HEIGHT = 180, 200
-
-
+FPS = 100
 
 
 class FacePatch:
@@ -44,6 +55,48 @@ class FacePatch:
                     if 0<=a<WINDOW_HEIGHT and 0<=b<WINDOW_WIDTH:
                         dest[a][b] = src[i][j][:3]
 
-        
 
+file = "test.mp4"
 
+fmodel = FacePatch(
+    head_src="assets/joe.png", 
+    head_width=180, 
+    head_height=200, 
+    offset_x=-10, 
+    offset_y=20
+)
+
+cap = VideoInput(os.path.join("video", file))
+n = 0
+
+'''2d coordinates'''
+column_names = [f'{j}{i}' for i in range(9) for j in 'xy']
+pmodel = MovenetPose()
+
+'''3d coordinates'''
+# column_names = [f'{j}{i}' for i in range(9) for j in 'xyz']
+# pmodel = MediapipePose()
+
+output_path = os.path.join("out", f"{file}.csv")
+if os.path.exists(output_path):
+    os.remove(output_path)
+data_writer = CSVOutput(output_path, column_names)
+
+print(f"Estimation started for {file}")
+while 1:
+    # 30 fps video
+    frame = cap.process()
+    if frame is None:
+        print("??")
+        break
+    n += 1
+    if n%1000==0:
+        print(f"{n} frames processed")
+    window_image = fmodel.process(frame)
+
+    if SHOW_VIDEO:
+        cv2.imshow(WINDOW_NAME, window_image)
+        cv2.waitKey(1)
+    landmarks = pmodel.process(window_image)
+    if landmarks is not None:
+        data_writer.process(landmarks)
