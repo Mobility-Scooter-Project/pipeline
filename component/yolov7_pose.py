@@ -6,9 +6,9 @@
 import torch
 from torchvision import transforms
 import numpy as np
-from pipeline.utils.datasets import letterbox
-from pipeline.utils.general import non_max_suppression_kpt
-from pipeline.utils.plots import output_to_keypoint
+from ..utils.datasets import letterbox
+from ..utils.general import non_max_suppression_kpt
+from ..utils.plots import output_to_keypoint
 
 landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 '''
