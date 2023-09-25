@@ -27,7 +27,7 @@ if args.batchsize > 1:
 videos = os.listdir(args.input)
 results = set(os.listdir(args.output))
 for video in videos:
-    if video not in results:
+    if video+'.csv' not in results and video+'.new' not in results:
         in_path = os.path.join(args.input, video)
-        out_path = os.path.join(args.output, video+'.csv')
+        out_path = os.path.join(args.output, video+'.new')
         process_file(in_path, out_path, *process_args)
