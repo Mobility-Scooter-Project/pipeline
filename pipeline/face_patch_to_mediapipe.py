@@ -71,13 +71,17 @@ def process_file(in_file, out_file):
     print(f"Estimation started for {in_file}")
     for i in tqdm(range(cap.total)):
         frame = cap.process()
-        window_image = fmodel.process(frame)
-        landmarks = pmodel.process(window_image)
-        if SHOW_VIDEO:
-            cv2.imshow(WINDOW_NAME, window_image)
-            cv2.waitKey(1)
-        if landmarks is not None:
-            data_writer.process(landmarks)
+
+        if frame is not None:
+            window_image = fmodel.process(frame)
+            landmarks = pmodel.process(window_image)
+            if landmarks is not None:
+                data_writer.process(landmarks)
+            else:
+                failed_frames.append(i)
+            if SHOW_VIDEO:
+                cv2.imshow(WINDOW_NAME, window_image)
+                cv2.waitKey(1)
         else:
             failed_frames.append(i)
     print(f"Saved {cap.total-len(failed_frames)} estimations to {out_file}")

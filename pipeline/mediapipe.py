@@ -4,7 +4,6 @@ from .utils import time_func
 
 @time_func
 def process_file(in_file, out_file):
-    frame = True
     failed_frames = []
 
     cap = VideoInput(in_file)
@@ -15,9 +14,12 @@ def process_file(in_file, out_file):
     print(f"Estimation started for {in_file}")
     for i in tqdm(range(cap.total)):
         frame = cap.process()
-        landmarks = pmodel.process(frame)
-        if landmarks is not None:
-            data_writer.process(landmarks)
+        if frame is not None:
+            landmarks = pmodel.process(frame)
+            if landmarks is not None:
+                data_writer.process(landmarks)
+            else:
+                failed_frames.append(i)
         else:
             failed_frames.append(i)
     print(f"Saved {cap.total-len(failed_frames)} estimations to {out_file}")
