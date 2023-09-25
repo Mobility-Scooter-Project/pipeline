@@ -1,9 +1,8 @@
 import numpy as np
 import cv2
-import sys
-import os
-from .pipe import MediapipePose, CSVOutput, BodypixNeck
-from .utils import frame, time_func
+from .pipe import VideoInput, BodypixNeck, MediapipePose, CSVOutput
+from .utils import time_func
+from tqdm import tqdm
 
 WINDOW_NAME = "Face Patch"
 SHOW_VIDEO = False
@@ -59,27 +58,28 @@ fmodel = FacePatch(
 )
 
 @time_func
-def process_file(file):
-    frames = frame(file)
-    frame = next(frames)
+def process_file(in_file, out_file):
+    cap = VideoInput(in_file)
+    frame = True
+    failed_frames = []
 
     '''3d coordinates'''
     column_names = [f'{j}{i}' for i in range(9) for j in 'xyz']
     pmodel = MediapipePose()
+    data_writer = CSVOutput(out_file, column_names)
 
-    output_path = os.path.join("out", f"{file}.csv")
-    if os.path.exists(output_path):
-        os.remove(output_path)
-    data_writer = CSVOutput(output_path, column_names)
-
-    print(f"Estimation started for {file}")
-    while frame:
+    print(f"Estimation started for {in_file}")
+    for i in tqdm(range(cap.total)):
+        frame = cap.process()
         window_image = fmodel.process(frame)
         landmarks = pmodel.process(window_image)
-        if landmarks is not None:
-            data_writer.process(landmarks)
         if SHOW_VIDEO:
             cv2.imshow(WINDOW_NAME, window_image)
             cv2.waitKey(1)
-        frame = next(frames)
-    print(f"Finished {file}")
+        if landmarks is not None:
+            data_writer.process(landmarks)
+        else:
+            failed_frames.append(i)
+    print(f"Saved {cap.total-len(failed_frames)} estimations to {out_file}")
+    if failed_frames:
+        print(f"Estimation failed in frames: {failed_frames}")

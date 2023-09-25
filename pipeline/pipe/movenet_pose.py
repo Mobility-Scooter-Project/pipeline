@@ -43,15 +43,14 @@ class MovenetPose:
         outputs = model(input_image)
         # Output is a [1, 1, 17, 3] tensor.
         keypoints_with_scores = outputs['output_0'].numpy()
-        return self.convert(keypoints_with_scores)
+        return self.convert(keypoints_with_scores[0])
 
     def convert(self, landmarks):
         result = []
         for index in landmark_indices:
-            landmark = landmarks[0][0][index]
+            landmark = landmarks[0][index]
             result.extend([landmark[0], landmark[1]])
         return result
 
     def __del__(self):
         pass
-

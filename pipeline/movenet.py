@@ -1,27 +1,20 @@
-import numpy as np
-import cv2
-import sys
-import os
-from .pipe import CSVOutput, MovenetPose
-
-'''2d coordinates'''
-column_names = [f'{j}{i}' for i in range(9) for j in 'xy']
-pmodel = MovenetPose()
+from .pipe import VideoInput, MovenetPose, CSVOutput
+from tqdm import tqdm
+from .utils import time_func
 
 @time_func
-def process_file(file):
-    frames = frame(file)
-    frame = next(frames)
+def process_file(in_file, out_file):
+    cap = VideoInput(in_file)
+    frame = True
 
-    output_path = os.path.join("out", f"{file}.csv")
-    if os.path.exists(output_path):
-        os.remove(output_path)
-    data_writer = CSVOutput(output_path, column_names)
+    '''2d coordinates'''
+    column_names = [f'{j}{i}' for i in range(9) for j in 'xy']
+    pmodel = MovenetPose()
+    data_writer = CSVOutput(out_file, column_names)
 
-    print(f"Estimation started for {file}")
-    while frame:
+    print(f"Estimation started for {in_file}")
+    for _ in tqdm(range(cap.total)):
+        frame = cap.process()
         landmarks = pmodel.process(frame)
-        if landmarks is not None:
-            data_writer.process(landmarks)
-        frame = next(frames)
-    print(f"Finished {file}")
+        data_writer.process(landmarks)
+    print(f"Saved {cap.total} estimations to {out_file}")
