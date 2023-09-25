@@ -12,15 +12,16 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-p', '--pipeline', required=True)
 parser.add_argument('-i', '--input', required=True)
 parser.add_argument('-o', '--output', required=True)
+parser.add_argument('-b', '--batchsize', type=int, default=1)
+
 
 args = parser.parse_args()
 
-# Import module dynamically
-try:
-    pipeline_module = importlib.import_module(f"{BASE_PIPELINE_MODULE}.{args.pipeline}")
+pipeline_module = importlib.import_module(f"{BASE_PIPELINE_MODULE}.{args.pipeline}")
+if args.batchsize == 1:
     process_file = pipeline_module.process_file
     process_file(args.input, args.output)
-except ImportError:
-    print(f"Pipeline '{args.pipeline}' not found!")
-except AttributeError:
-    print(f"'process_file' function not found in pipeline '{args.pipeline}'!")
+else:
+    process_file = pipeline_module.process_file_in_batch
+    process_file(args.input, args.output, args.batchsize)
+

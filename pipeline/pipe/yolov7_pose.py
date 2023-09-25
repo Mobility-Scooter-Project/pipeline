@@ -68,3 +68,26 @@ class Yolov7Pose:
 
     def __del__(self):
         pass
+
+    def process_batch(self, inputs):
+        images = []
+        for i in inputs:
+            image = letterbox(i, 960, stride=64, auto=True)[0]
+            image = transforms.ToTensor()(image)
+            images.append(image.numpy())
+        batch_input = torch.tensor(np.array(images))
+
+        landmarks_array = []
+        with torch.no_grad():
+            output, _ = self.model(batch_input)
+        output = non_max_suppression_kpt(output, 0.25, 0.65, nc=self.model.yaml['nc'], nkpt=self.model.yaml['nkpt'], kpt_label=True)
+        for i in output:
+            with torch.no_grad():
+                output = output_to_keypoint([i])
+            length = output.shape[0]
+            if length == 0:
+                landmarks_array.append(None)
+            else:
+                # take only the first person in the list, the first 7 elements in the output[0] list is unknown
+                landmarks_array.append(self.convert(output[0, 7:].T))
+        return landmarks_array

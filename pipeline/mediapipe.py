@@ -1,14 +1,13 @@
-from .pipe import VideoInput, MediapipePose, CSVOutput
 from tqdm import tqdm
+from .pipe import VideoInput, MediapipePose, CSVOutput
 from .utils import time_func
 
 @time_func
 def process_file(in_file, out_file):
-    cap = VideoInput(in_file)
     frame = True
     failed_frames = []
 
-    '''3d coordinates'''
+    cap = VideoInput(in_file)
     column_names = [f'{j}{i}' for i in range(9) for j in 'xyz']
     pmodel = MediapipePose()
     data_writer = CSVOutput(out_file, column_names)

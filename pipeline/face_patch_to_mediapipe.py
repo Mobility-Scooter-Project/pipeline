@@ -1,8 +1,8 @@
 import numpy as np
 import cv2
+from tqdm import tqdm
 from .pipe import VideoInput, BodypixNeck, MediapipePose, CSVOutput
 from .utils import time_func
-from tqdm import tqdm
 
 WINDOW_NAME = "Face Patch"
 SHOW_VIDEO = False
