@@ -24,7 +24,7 @@ def process_file(in_file, out_file):
         print(f"Estimation failed in frames: {failed_frames}")
 
 @time_func
-def process_file_with_batch(in_file, out_file, batch_size):
+def process_file_in_batch(in_file, out_file, batch_size):
     cap = VideoInput(in_file)
     frame = True
     frame_buffer = []
