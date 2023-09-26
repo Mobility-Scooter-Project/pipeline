@@ -26,8 +26,8 @@ def process_file(in_file, out_file):
 @time_func
 def process_file_in_batch(in_file, out_file, batch_size):
     cap = VideoInput(in_file)
-    frame = True
     frame_buffer = []
+    failed_frames = []
 
     '''2d coordinates'''
     column_names = [f'{j}{i}' for i in range(9) for j in 'xy']
@@ -37,10 +37,14 @@ def process_file_in_batch(in_file, out_file, batch_size):
     print(f"Estimation started for {in_file}")
     for i in tqdm(range(cap.total)):
         frame = cap.process()
+        if frame is not None:
+            frame_buffer.append(frame)
+        else:
+            failed_frames.append(i)
         if len(frame_buffer) >= batch_size or (len(frame_buffer) and i==cap.total-1):
             landmarks_array = pmodel.process_batch(frame_buffer)
             frame_buffer.clear()
             [data_writer.process(lm) for lm in landmarks_array]
-        else:
-            frame_buffer.append(frame)
     print(f"Saved {cap.total} estimations to {out_file}")
+    if failed_frames:
+        print(f"Estimation failed in frames: {failed_frames}")
