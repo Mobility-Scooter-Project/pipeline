@@ -1,12 +1,17 @@
-import cv2
 import numpy as np
-from ..component.bp_neck import BodypixNeck
+import cv2
+from tqdm import tqdm
+from .pipe import VideoInput, BodypixNeck, MediapipePose, CSVOutput
+from .utils import time_func
 
+WINDOW_NAME = "Face Patch"
+SHOW_VIDEO = False
+BG_COLOR = (192, 192, 192) # gray
+MASK_COLOR = (255, 255, 255) # white
+POINT_COLOR = (0, 0, 0) # black
 PROCESS_WIDTH, PROCESS_HEIGHT = 640, 360
 WINDOW_WIDTH, WINDOW_HEIGHT = 640, 540
 HEAD_WIDTH, HEAD_HEIGHT = 180, 200
-
-
 
 
 class FacePatch:
@@ -44,6 +49,41 @@ class FacePatch:
                     if 0<=a<WINDOW_HEIGHT and 0<=b<WINDOW_WIDTH:
                         dest[a][b] = src[i][j][:3]
 
-        
+fmodel = FacePatch(
+    head_src="assets/joe.png", 
+    head_width=180, 
+    head_height=200, 
+    offset_x=-10, 
+    offset_y=20
+)
 
+@time_func
+def process_file(in_file, out_file):
+    cap = VideoInput(in_file)
+    frame = True
+    failed_frames = []
 
+    '''3d coordinates'''
+    column_names = [f'{j}{i}' for i in range(9) for j in 'xyz']
+    pmodel = MediapipePose()
+    data_writer = CSVOutput(out_file, column_names)
+
+    print(f"Estimation started for {in_file}")
+    for i in tqdm(range(cap.total)):
+        frame = cap.process()
+
+        if frame is not None:
+            window_image = fmodel.process(frame)
+            landmarks = pmodel.process(window_image)
+            if landmarks is not None:
+                data_writer.process(landmarks)
+            else:
+                failed_frames.append(i)
+            if SHOW_VIDEO:
+                cv2.imshow(WINDOW_NAME, window_image)
+                cv2.waitKey(1)
+        else:
+            failed_frames.append(i)
+    print(f"Saved {cap.total-len(failed_frames)} estimations to {out_file}")
+    if failed_frames:
+        print(f"Estimation failed in frames: {failed_frames}")
