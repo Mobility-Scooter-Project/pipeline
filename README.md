@@ -25,7 +25,9 @@ python main.py -p PIPELINE -i INPUT -o OUTPUT [-b BATCHSIZE]
     - The path to the input video file.
 - `-o, --output`
     - The path to the output CSV file. 
-
+- `-b, --batchsize` (Optional) 
+    - Batch size for processing. 
+    - only applicable to `yolov7`
 
 ## models
 Download yolov7 model file to `assets/` on GitHub releases if needed~ 
