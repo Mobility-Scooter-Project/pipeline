@@ -72,7 +72,7 @@ class Yolov7Pose:
     def process_batch(self, inputs):
         images = []
         for i in inputs:
-            image = letterbox(i, 960, stride=64, auto=True)[0]
+            image = letterbox(i, self.input_size, stride=64, auto=True)[0]
             image = transforms.ToTensor()(image)
             images.append(image.numpy())
         batch_input = torch.tensor(np.array(images))
