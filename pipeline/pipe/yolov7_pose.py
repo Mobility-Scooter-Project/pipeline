@@ -37,12 +37,13 @@ class Yolov7Pose:
         weigths = torch.load('assets/yolov7-w6-pose.pt', map_location=device)
         self.model = weigths['model']
         _ = self.model.float().eval()
+        self.input_size = 192
         # if torch.cuda.is_available():
         #     self.model.half().to(device)
 
 
     def process(self, inputs):
-        image = letterbox(inputs, 960, stride=64, auto=True)[0]
+        image = letterbox(inputs, self.input_size, stride=64, auto=True)[0]
         image = transforms.ToTensor()(image)
         image = torch.tensor(np.array([image.numpy()]))
 
@@ -61,9 +62,8 @@ class Yolov7Pose:
 
     def convert(self, landmarks):
         result = []
-        # outputs are in pixel value of 960x960 image
         for index in landmark_indices:
-            result.extend([landmarks[index*3]/960, landmarks[1+index*3]/960])
+            result.extend([landmarks[index*3]/self.input_size, landmarks[1+index*3]/self.input_size])
         return result
 
     def __del__(self):

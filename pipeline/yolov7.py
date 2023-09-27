@@ -12,7 +12,7 @@ def process_file(in_file, out_file):
     data_writer = CSVOutput(out_file, column_names)
 
     print(f"Estimation started for {in_file}")
-    for _ in tqdm(range(cap.total)):
+    for i in tqdm(range(cap.total)):
         frame = cap.process()
         if frame is not None:
             landmarks = pmodel.process(frame)
