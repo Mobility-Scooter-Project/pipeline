@@ -33,19 +33,29 @@ landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 
 class Yolov7Pose:
     def __init__(self):
-        device = torch.device("cpu")
-        weigths = torch.load('assets/yolov7-w6-pose.pt', map_location=device)
-        self.model = weigths['model']
+        if torch.cuda.is_available():
+            print("The following GPU will be used: ", torch.cuda.get_device_name(0), "\n")
+
+            device = torch.device("cuda:0")
+        else:
+            device = torch.device("cpu")
+        
+        weights = torch.load('assets/yolov7-w6-pose.pt', map_location=device)
+        self.model = weights['model']
         _ = self.model.float().eval()
         self.input_size = 192
-        # if torch.cuda.is_available():
-        #     self.model.half().to(device)
+        #if torch.cuda.is_available():
+             #self.model.to("cuda")
 
 
     def process(self, inputs):
         image = letterbox(inputs, self.input_size, stride=64, auto=True)[0]
         image = transforms.ToTensor()(image)
         image = torch.tensor(np.array([image.numpy()]))
+
+        #move input to gpu if available
+        if torch.cuda.is_available():
+            image = image.to(torch.device("cuda:0"))
 
         with torch.no_grad():
             output, _ = self.model(image)
@@ -76,6 +86,10 @@ class Yolov7Pose:
             image = transforms.ToTensor()(image)
             images.append(image.numpy())
         batch_input = torch.tensor(np.array(images))
+
+        #move input to gpu if available
+        if torch.cuda.is_available():
+            batch_input = batch_input.to(torch.device("cuda:0"))
 
         landmarks_array = []
         with torch.no_grad():
