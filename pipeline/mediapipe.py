@@ -1,5 +1,7 @@
 from tqdm import tqdm
-from .pipe import VideoInput, MediapipePose, CSVOutput
+from .pipe.video_input import VideoInput
+from .pipe.mediapipe_pose import MediapipePose
+from .pipe.csv_output import CSVOutput
 from .utils import time_func
 
 @time_func

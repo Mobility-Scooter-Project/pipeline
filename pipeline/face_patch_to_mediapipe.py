@@ -1,7 +1,10 @@
 import numpy as np
 import cv2
 from tqdm import tqdm
-from .pipe import VideoInput, BodypixNeck, MediapipePose, CSVOutput
+from .pipe.video_input import VideoInput
+from .pipe.bodypix_neck import BodypixNeck
+from .pipe.mediapipe_pose import MediapipePose
+from .pipe.csv_output import CSVOutput
 from .utils import time_func
 
 WINDOW_NAME = "Face Patch"
