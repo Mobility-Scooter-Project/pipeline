@@ -10,6 +10,7 @@ from ..utils.yolov7.datasets import letterbox
 from ..utils.yolov7.general import non_max_suppression_kpt
 from ..utils.yolov7.plots import output_to_keypoint
 
+raise Exception
 landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 '''
 0 - nose
