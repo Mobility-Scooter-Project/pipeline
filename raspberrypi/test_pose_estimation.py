@@ -1,6 +1,6 @@
 # Usage
 '''
-python raspberrypi/test_pose_estimation.py -i "{video_path}" -p movenet_pose -r 10
+python raspberrypi/test_pose_estimation.py -i "video/test.mp4" -p movenet_pose -r 10
 '''
 
 import argparse
