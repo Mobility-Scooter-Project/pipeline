@@ -7,7 +7,6 @@ import argparse
 import importlib
 import sys, os; sys.path.append(os.path.abspath('.'))
 import time
-from contextlib import suppress
 
 from multiprocessing import Process, Manager, Value, Queue
 from queue import Empty
@@ -44,10 +43,11 @@ MAX_PROCESSES = args.num_of_processes
 REPEAT = args.repeat
 BATCH_SIZE = args.batch_size
 
-def func(model, return_dict, done, queue, batch_size):
+def func(model, return_dict, state, queue, batch_size):
     m = model()
     results = []
-    while not done.value or not queue.empty():
+    state.value = 1
+    while state.value != 2 or not queue.empty():
         try:
             frame, index = queue.get(timeout=1)
             results.append((m.process(frame), index))
@@ -60,15 +60,16 @@ def func(model, return_dict, done, queue, batch_size):
         return_dict[index] = result
 
 if __name__ == '__main__':
+    start = time.time()
     return_dict = Manager().dict()
     index = 0
     queues = [Queue() for _ in range(MAX_PROCESSES)]
-    dones = [Value('b', False) for _ in range(MAX_PROCESSES)]
+    states = [Value('i', 0) for _ in range(MAX_PROCESSES)] # 0: pending | 1: running | 2: done
     processes = [
         Process(target=func, args=(
             model, 
             return_dict, 
-            dones[i],
+            states[i],
             queues[i],
             BATCH_SIZE
         )) for i in range(MAX_PROCESSES)
@@ -76,8 +77,11 @@ if __name__ == '__main__':
     for proc in processes:
         proc.start()
 
-    # initialize subprocesses 
-    time.sleep(20)
+    # wait for subprocess initialization
+    while any([state.value==0 for state in states]):
+        time.sleep(1)
+    end = time.time()
+    print(f"Initialized in {end - start}s")
     
     start = time.time()
     while index < REPEAT:
@@ -93,8 +97,8 @@ if __name__ == '__main__':
         if busy:
             time.sleep(0.01)
 
-    for done in dones:
-        done.value = True
+    for state in states:
+        state.value = 2
     for proc in processes:
         proc.join()
     end = time.time()
