@@ -44,16 +44,18 @@ MAX_PROCESSES = args.num_of_processes
 REPEAT = args.repeat
 BATCH_SIZE = args.batch_size
 
-def func(model, return_dict, done, queue):
+def func(model, return_dict, done, queue, batch_size):
     m = model()
     results = []
     while not done.value or not queue.empty():
         try:
             frame, index = queue.get(timeout=1)
             results.append((m.process(frame), index))
+            if len(results) > batch_size*2:
+                for result, index in results:
+                    return_dict[index] = result
         except Empty:
-            for result, index in results:
-                return_dict[index] = result
+            pass
     for result, index in results:
         return_dict[index] = result
 
@@ -68,6 +70,7 @@ if __name__ == '__main__':
             return_dict, 
             dones[i],
             queues[i],
+            BATCH_SIZE
         )) for i in range(MAX_PROCESSES)
     ]
     for proc in processes:
