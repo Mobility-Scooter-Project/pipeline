@@ -1,14 +1,14 @@
 # Usage
 '''
-python raspberrypi/test_pose_multiprocessing_reality.py -i "video/test.mp4" -p movenet_pose -r 10 -b 20
+python raspberrypi/multiprocessing_stable.py -i "video/test.mp4" -p mediapipe -r 1000 -b 20 -n 4
 '''
 
 import argparse
 import importlib
 import sys, os; sys.path.append(os.path.abspath('.'))
 import time
-
-from multiprocessing import Process, Manager, Value, Queue
+from multiprocessing import Process, Value, Queue
+from threading import Thread
 from queue import Empty
 from pipeline.pipe.video_input import VideoInput
 
@@ -43,17 +43,17 @@ MAX_PROCESSES = args.num_of_processes
 REPEAT = args.repeat
 BATCH_SIZE = args.batch_size
 
-def func(model, return_dict, state, queue, batch_size):
+def worker(model, state, in_queue, out_queue, batch_size):
     m = model()
     buffer = []
     state.value = 1
     def flush_buffer():
         for result, index in buffer:
-            return_dict[index] = result
-        buffer.clear
-    while state.value != 2 or not queue.empty():
+            out_queue.put((result, index)) 
+        buffer.clear()
+    while state.value != 2 or not in_queue.empty():
         try:
-            frame, index = queue.get(timeout=1)
+            frame, index = in_queue.get()
             buffer.append((m.process(frame), index))
             if len(buffer) > batch_size*2:
                 flush_buffer()
@@ -61,18 +61,46 @@ def func(model, return_dict, state, queue, batch_size):
             pass
     flush_buffer()
 
+
+def grouper(in_queues, out_queue, done, batch_size):
+    buffer = {}
+    current_index = 0
+    def flush_buffer():
+        nonlocal current_index
+        result = buffer.get(current_index)
+        while result is not None:
+            out_queue.append(result)
+            del buffer[current_index]
+            current_index += 1
+            result = buffer.get(current_index)
+
+    while not done.value or any([not q.empty() for q in in_queues]):
+        for q in in_queues:
+            try:
+                for _ in range(batch_size):
+                    frame, index = q.get(timeout=0.1)
+                    buffer[index] = frame
+            except Empty:
+                pass
+        flush_buffer()
+    flush_buffer()
+
 if __name__ == '__main__':
     start = time.time()
-    return_dict = Manager().dict()
     index = 0
-    queues = [Queue() for _ in range(MAX_PROCESSES)]
+    in_queues = [Queue() for _ in range(MAX_PROCESSES)]
+    out_queues = [Queue() for _ in range(MAX_PROCESSES)]
     states = [Value('i', 0) for _ in range(MAX_PROCESSES)] # 0: pending | 1: running | 2: done
+    result_queue = []
+    grouper_done = Value('b', False)
+    grouper_thread = Thread(target=grouper, args=(out_queues, result_queue, grouper_done, BATCH_SIZE))
+    grouper_thread.start()
     processes = [
-        Process(target=func, args=(
+        Process(target=worker, args=(
             model, 
-            return_dict, 
             states[i],
-            queues[i],
+            in_queues[i],
+            out_queues[i],
             BATCH_SIZE
         )) for i in range(MAX_PROCESSES)
     ]
@@ -89,11 +117,11 @@ if __name__ == '__main__':
     while index < REPEAT:
         busy = True
         for i in range(MAX_PROCESSES):
-            if queues[i].qsize() < BATCH_SIZE*2:
+            if in_queues[i].qsize() < BATCH_SIZE*2:
                 for _ in range(BATCH_SIZE):
                     if index >= REPEAT:
                         break
-                    queues[i].put((frame, index))
+                    in_queues[i].put((frame, index))
                     index += 1
                 busy = False
         if busy:
@@ -103,11 +131,13 @@ if __name__ == '__main__':
         state.value = 2
     for proc in processes:
         proc.join()
+    grouper_done.value = True
+    grouper_thread.join()
     end = time.time()
 
     total = end - start
     average = total/args.repeat
     print(f"Total time   : {total} sec")
     print(f"Average time : {average} sec")
-    print(len(return_dict))
-    assert REPEAT==len(return_dict)
+    print(len(result_queue))
+    assert REPEAT==len(result_queue)
