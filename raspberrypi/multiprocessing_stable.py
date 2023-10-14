@@ -50,7 +50,7 @@ def worker(model, state, in_queue, out_queue, batch_size):
     def flush_buffer():
         for result, index in buffer:
             out_queue.put((result, index)) 
-        buffer.clear()
+        buffer = []
     while state.value != 2 or not in_queue.empty():
         try:
             frame, index = in_queue.get()
