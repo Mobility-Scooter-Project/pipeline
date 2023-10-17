@@ -16,6 +16,7 @@ NAME_TO_MODEL = {
     'movenet_pose': 'MovenetPose',
     'yolov7_pose': 'Yolov7Pose',
     'mediapipe_pose': 'MediapipePose',
+    'movenet_tpu': 'MovenetTPU'
 }
 
 parser = argparse.ArgumentParser(prog='Pose Estimation Testing')

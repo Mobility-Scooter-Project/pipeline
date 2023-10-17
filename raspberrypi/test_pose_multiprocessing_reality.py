@@ -19,6 +19,7 @@ NAME_TO_MODEL = {
     'movenet_pose': 'MovenetPose',
     'yolov7_pose': 'Yolov7Pose',
     'mediapipe_pose': 'MediapipePose',
+    'movenet_tpu': 'MovenetTPU'
 }
 
 parser = argparse.ArgumentParser(prog='Pose Estimation Testing')
@@ -48,9 +49,10 @@ def func(model, return_dict, state, queue, batch_size):
     buffer = []
     state.value = 1
     def flush_buffer():
+        nonlocal buffer
         for result, index in buffer:
             return_dict[index] = result
-        buffer.clear
+        buffer = []
     while state.value != 2 or not queue.empty():
         try:
             frame, index = queue.get(timeout=1)

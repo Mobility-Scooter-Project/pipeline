@@ -1,6 +1,6 @@
 # Usage
 '''
-python raspberrypi/multiprocessing_stable.py -i "video/test.mp4" -p mediapipe -r 1000 -b 20 -n 4
+python raspberrypi\multiprocessing_cpu+tpu.py -i "video/test.mp4" -r 1000 -b 20
 '''
 
 import argparse
@@ -24,15 +24,11 @@ NAME_TO_MODEL = {
 
 parser = argparse.ArgumentParser(prog='Pose Estimation Testing')
 parser.add_argument('-i', '--video_path', required=True)
-parser.add_argument('-p', '--pipe', required=True)
 parser.add_argument('-r', '--repeat', type=int, required=True)
 parser.add_argument('-s', '--skip', type=int, required=False, default=1000)
-parser.add_argument('-n', '--num_of_processes', type=int, required=False, default=2)
 parser.add_argument('-b', '--batch_size', type=int, required=False, default=1)
 args = parser.parse_args()
 
-pipe_module = importlib.import_module(f"{BASE_PIPE_MODULE}.{args.pipe}")
-model = getattr(pipe_module, NAME_TO_MODEL[args.pipe])
 cap = VideoInput(args.video_path)
 frame = None
 
@@ -40,11 +36,13 @@ frame = None
 for i in range(args.skip):
     frame = cap.process()
 
-MAX_PROCESSES = args.num_of_processes
+MAX_PROCESSES = 2
 REPEAT = args.repeat
 BATCH_SIZE = args.batch_size
 
-def worker(model, state, in_queue, out_queue, batch_size):
+def worker(pipe_name, model_name, state, in_queue, out_queue, batch_size):
+    pipe_module = importlib.import_module(f"{BASE_PIPE_MODULE}.{pipe_name}")
+    model = getattr(pipe_module, model_name)
     m = model()
     buffer = []
     state.value = 1
@@ -99,12 +97,21 @@ if __name__ == '__main__':
     grouper_thread.start()
     processes = [
         Process(target=worker, args=(
-            model, 
-            states[i],
-            in_queues[i],
-            out_queues[i],
+            'movenet_pose', 
+            NAME_TO_MODEL['movenet_pose'],
+            states[0],
+            in_queues[0],
+            out_queues[0],
             BATCH_SIZE
-        )) for i in range(MAX_PROCESSES)
+        )),
+        Process(target=worker, args=(
+            'movenet_tpu', 
+            NAME_TO_MODEL['movenet_tpu'],
+            states[1],
+            in_queues[1],
+            out_queues[1],
+            BATCH_SIZE
+        )),
     ]
     for proc in processes:
         proc.start()
