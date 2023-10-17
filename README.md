@@ -34,3 +34,4 @@ Download yolov7 model file to `assets/` on GitHub releases if needed~
 
 ## references
 - https://github.com/tensorflow/tfjs-models/blob/master/pose-detection/README.md
+- https://coral.ai/docs/accelerator/get-started/#requirements
