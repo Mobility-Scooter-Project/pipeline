@@ -13,3 +13,6 @@ pyyaml
 seaborn
 scipy
 numpy==1.23.4
+
+--extra-index-url https://google-coral.github.io/py-repo/
+pycoral~=2.0
