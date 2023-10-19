@@ -1,6 +1,7 @@
 # Pipelines
 This repo is created to run and combine different machine learning pipelines with other tasks.
 - pipe initializes a model or resource and provides destructor as `__del__` to release it.
+- If a GPU is detected with CUDA while using YOLOv7, that GPU will be utilized for computations.
 
 ## setup
 - install anaconda
