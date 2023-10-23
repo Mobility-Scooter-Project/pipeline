@@ -30,8 +30,8 @@ python main.py -p PIPELINE -i INPUT -o OUTPUT [-b BATCHSIZE]
     - only applicable to `yolov7`
 
 ## models
-Download yolov7 model file to `assets/` on GitHub releases if needed~ 
-Download an untrained auth model to `assets/` to test the authentication model
+- Download yolov7 model file to `assets/` on GitHub releases if needed~ 
+- Download an untrained auth model to `assets/` to test the authentication model
 
 ## references
 - https://github.com/tensorflow/tfjs-models/blob/master/pose-detection/README.md
