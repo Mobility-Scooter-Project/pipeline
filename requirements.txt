@@ -4,8 +4,8 @@ tfjs-graph-converter
 mediapipe
 opencv-python
 pygame
-torch
-torchvision
+torch==1.13.1
+torchvision==0.14.1
 torchaudio
 torch_geometric
 tqdm
