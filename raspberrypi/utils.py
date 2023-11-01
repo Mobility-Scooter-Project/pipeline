@@ -17,3 +17,17 @@ def repeat_n_times_and_analysis(n):
         print(f"Average time : {average} sec")
         print(f"STD DEV      : {numpy.std(times)}")
     return repeat_helper
+
+
+def get_energy():
+    with open('watt.csv', 'r') as rf:
+        lines = rf.readlines()
+    usable_lines = lines[1:]
+    prev = None
+    ans = 0
+    for line in usable_lines:
+        t, p = line.split(',')[:2]
+        if prev is not None:
+            ans += (int(t) - prev) / 1000 * float(p)
+        prev = int(t)
+    return ans
