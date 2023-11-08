@@ -1,5 +1,7 @@
 from tqdm import tqdm
-from .pipe import VideoInput, CSVOutput, MovenetPose
+from .pipe.video_input import VideoInput
+from .pipe.movenet_pose import MovenetPose
+from .pipe.csv_output import CSVOutput
 from .utils import time_func
 
 '''2d coordinates'''

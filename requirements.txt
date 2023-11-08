@@ -4,12 +4,16 @@ tfjs-graph-converter
 mediapipe
 opencv-python
 pygame
-torch
-torchvision
+torch==1.13.1
+torchvision==0.14.1
 torchaudio
+torch_geometric
 tqdm
 pandas
 pyyaml
 seaborn
 scipy
 numpy==1.23.4
+
+--extra-index-url https://google-coral.github.io/py-repo/
+pycoral~=2.0

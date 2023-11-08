@@ -2,6 +2,7 @@
 # inputs: image
 # output: list[(float, float)] -> 9 2d-landmarks
 
+import os
 import tensorflow as tf
 import tensorflow_hub as hub
 
@@ -27,7 +28,8 @@ landmark_indices = [0, 5, 6, 7, 8, 9, 10, 11, 12]
 '''
 class MovenetPose:
     def __init__(self):
-        self.module = hub.load("https://tfhub.dev/google/movenet/singlepose/lightning/4")
+        module_path = os.path.join('assets', 'movenet_tf')
+        self.module = tf.saved_model.load(module_path)
         self.input_size = 192
         # self.module = hub.load("https://tfhub.dev/google/movenet/singlepose/thunder/4")
         # self.input_size = 256

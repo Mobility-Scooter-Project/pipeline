@@ -1,5 +1,6 @@
 __pycache__
 *pt
+*.pth
 .DS_Store
 *mp4
 *csv

@@ -1,5 +1,7 @@
 from tqdm import tqdm
-from .pipe import VideoInput, Yolov7Pose, CSVOutput
+from .pipe.video_input import VideoInput
+from .pipe.yolov7_pose import Yolov7Pose
+from .pipe.csv_output import CSVOutput
 from .utils import time_func
 
 @time_func
