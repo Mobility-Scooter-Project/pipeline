@@ -1,5 +1,5 @@
 """
-Per-session preprocessing for mobility-scooter pose + IMU, for world-model training.
+Per-session preprocessing for mobility-scooter pose + IMU.
 
 Inputs per session
   imu_csv      acc_x..gyro_z, datetime   (~5 Hz, wall clock)
@@ -17,7 +17,6 @@ Pipeline
 Each clip is decoded ONCE at 160x90; the motion signal and the frame-recovery
 evidence are both derived from that pass.
 
-Validated on three sessions: p9 (T0 = 18.8 s), p10 (-109.2 s), P011 (5.2 s).
 """
 import argparse, gc, glob, json, os, re, shutil, subprocess, sys, tempfile, time
 import numpy as np, pandas as pd
