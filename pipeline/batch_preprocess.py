@@ -117,9 +117,25 @@ def stationary_mask(d, win=10, acc_thr=0.01, gyr_thr=0.01):
     return ((sa < acc_thr) & (sg < gyr_thr)).values
 
 def calibrate_imu(d, fs=5.0, fc=0.2):
-    """Scale the accelerometer so stationary |a| = 1 g, remove a time-varying gyro
-    bias, rotate into a gravity-aligned frame and subtract gravity. Heading is not
-    identified: acc_lin_h1/h2 are horizontal but not forward/lateral."""
+    """Scale the accelerometer so stationary |a| = g, remove a time-varying gyro bias,
+    rotate into a gravity-aligned frame and subtract gravity.
+
+    UNITS: acc_*_cal and acc_lin_* / acc_vert are in m/s^2 (the raw g-units reading is
+    multiplied by G), gyro_*_cal and yaw_rate in rad/s, pitch/roll in degrees.
+
+    Heading is not identified: acc_lin_h1/h2 are horizontal but not forward/lateral.
+
+    TWO CONSEQUENCES OF THE fc=0.2 Hz GRAVITY ESTIMATE, which matter for modelling:
+    - pitch_deg and roll_deg are derived from the LOW-PASSED acceleration, so they are
+      smooth by construction (lag-1 autocorrelation 0.995 vs 0.104 for tilt computed
+      from the unfiltered accelerometer). Their high predictability reflects this
+      filter's bandwidth, not dynamics a model has learned.
+    - gravity is removed using that same low-passed estimate, so acc_vert is a
+      HIGH-PASSED signal by construction: its sub-0.2 Hz content was removed here, not
+      absent from the sensor.
+    Fusing the gyro instead was tested and is worse at this sample rate: residual gyro
+    bias reaches 2-3 deg/s, so a complementary filter drifts by more than the whole
+    tilt signal (SD ~2 deg) within a second. The low-pass is the better estimator here."""
     still = stationary_mask(d)
     if still.sum() < 50:
         raise ValueError('too few stationary samples to calibrate (%d)' % still.sum())
