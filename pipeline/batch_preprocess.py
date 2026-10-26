@@ -84,9 +84,25 @@ GATES = dict(acc_scale=(0.90, 1.12), stationary_frac_min=0.02, pose_coverage_min
 
 # ============================================================== IMU
 
-def load_imu(path):
+def load_imu(path, verbose=True):
     d = pd.read_csv(path).dropna(axis=1, how='all')
-    d['datetime'] = pd.to_datetime(d['datetime'])
+    # A logger killed mid-write leaves a trailing all-blank row. Left in place its
+    # NaT timestamp casts to the int64 minimum and t_imu becomes ~-9.2e9 s, which
+    # silently poisons duration, sync and every downstream gate.
+    d['datetime'] = pd.to_datetime(d['datetime'], errors='coerce')
+    bad = d['datetime'].isna() | d[ACC + GYR].isna().all(axis=1)
+    if bad.any():
+        if verbose:
+            print(f'  WARNING: dropping {int(bad.sum())} IMU row(s) with no timestamp or '
+                  f'no sensor data (rows {list(d.index[bad])[:5]})')
+        d = d[~bad]
+    if d[ACC + GYR].isna().any().any():
+        n = int(d[ACC + GYR].isna().any(axis=1).sum())
+        if verbose:
+            print(f'  WARNING: dropping {n} IMU row(s) with partial sensor data')
+        d = d.dropna(subset=ACC + GYR)
+    if len(d) < 100:
+        raise ValueError(f'only {len(d)} usable IMU rows in {os.path.basename(path)}')
     d = d.sort_values('datetime').reset_index(drop=True)
     t = d['datetime'].astype('int64')/1e9
     d['t_imu'] = t - t.iloc[0]
@@ -899,7 +915,10 @@ def main(argv=None):
               + (f'  (elapsed {el/60:.0f} min, eta {eta/60:.0f} min)' if i > 1 else ''))
         try:
             tag, qc = process_one(pdir, vdir, a, tag=None)
-            rows.append(_summary_row(tag, qc))
+            # the SESSION id, never the tag: the tag carries the participant, which
+            # is already its own column, and --skip-existing writes `name` - mixing
+            # the two makes the column unjoinable across resumed runs
+            rows.append(_summary_row(name, qc))
         except Exception as e:
             print(f'  FAILED: {type(e).__name__}: {e}')
             rows.append(_summary_row(name, {}, err=f'{type(e).__name__}: {e}'))
