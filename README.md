@@ -42,7 +42,9 @@ python batch_preprocess.py <pose_root> <video_motion_root>  --out <output_folder
 - `<video_motion_root>`
     - The path to the folder that contains motion IMU csv files and processed videos, organized by session IDs (subfolders)
 - `--out`
-    - The path to the output merged csv files that contains synchronized IMU + pose data, a QC JSON with sync and gate metrics. 
+    - The path to the output for each session merged csv files that contains synchronized IMU + pose data, a QC JSON with sync and gate metrics. 
+- `--session`
+    - The single session ID that will be processed 
 - `--skip-existing`
     - Skip the session which has been synchronized before
 
