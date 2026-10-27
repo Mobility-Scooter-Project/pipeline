@@ -395,7 +395,8 @@ def _sync_at(imu, coh30, src_fps, move_thr, min_overlap_frac, smooth):
                 status='ok' if ok else 'weak')
 
 def estimate_sync(imu, coherence_30fps, src_fps=30.0, move_thr=None,
-                  min_overlap_frac=0.6, smooth=5, thr_grid=THR_GRID):
+                  min_overlap_frac=0.6, smooth=5, thr_grid=THR_GRID,
+                  t0_tol=5.0, weak_margin=0.10, t0_spread_max=5.0):
     """One global offset T0 = seconds into the IMU log at which the continuous video
     stream begins; NEGATIVE when the camera was started before the logger.
 
@@ -421,6 +422,35 @@ def estimate_sync(imu, coherence_30fps, src_fps=30.0, move_thr=None,
     top = cand[:3]
     best['t0_spread_s'] = float(max(r['T0'] for r in top) - min(r['T0'] for r in top))
     best['n_thresholds_tried'] = len(cand)
+
+    # CONSENSUS ACROSS THRESHOLDS. Ranking by margin alone assumes the margins are
+    # informative. On a session where the rider almost never stops the kappa landscape
+    # is flat, every margin is near the floor, and the winner is chosen by noise -- it
+    # can sit in a basin minutes away from where most thresholds agree. Count how many
+    # thresholds land within tol of each candidate's T0 and, when the margin is weak,
+    # take the offset the majority supports instead.
+    t0s = np.array([r['T0'] for r in cand])
+    def support(t0):
+        return int((np.abs(t0s - t0) <= t0_tol).sum())
+    best['t0_consensus_frac'] = support(best['T0'])/len(cand)
+    if best['kappa_margin'] < weak_margin:
+        alt = max(cand, key=lambda r: (support(r['T0']), r['kappa_margin']))
+        if support(alt['T0']) > support(best['T0']):
+            alt = dict(alt)
+            alt['t0_spread_s'] = best['t0_spread_s']
+            alt['n_thresholds_tried'] = len(cand)
+            alt['t0_consensus_frac'] = support(alt['T0'])/len(cand)
+            alt['selected_by'] = 'threshold consensus (margins too flat to rank)'
+            alt['margin_winner_T0'] = best['T0']
+            best = alt
+
+    # A spread of minutes across the top thresholds means the offset is NOT determined,
+    # however clean the winning peak looked. This was computed and reported but never
+    # gated on, so sessions whose thresholds disagreed by 2-5 minutes still passed.
+    if best['t0_spread_s'] > t0_spread_max and best['t0_consensus_frac'] < 0.5:
+        best['status'] = 'weak'
+        best['weak_reason'] = (f"top thresholds disagree by {best['t0_spread_s']:.0f} s "
+                               f"with only {best['t0_consensus_frac']:.0%} consensus")
     return best
 
 # ============================================================== merge
@@ -687,9 +717,16 @@ def discover(pose_path, video_motion_path):
         raise FileNotFoundError(f'no *front*.mp4 under {vid_dir}')
 
     poses = {}
+    superseded = []
     for f in glob.glob(os.path.join(pose_path, '**', '*.csv'), recursive=True):
         b = os.path.basename(f)
         if 'front' not in b.lower() or 'side' in b.lower(): continue
+        # Re-extracting a session leaves the previous export beside the new one. An
+        # explicit human "this is the old one" marker is unambiguous, so honour it and
+        # SAY SO, rather than refusing the session or guessing between two live files.
+        if re.search(r'(_|-|\s)(old|bak|backup|orig|prev)$',
+                     os.path.splitext(b)[0], re.IGNORECASE):
+            superseded.append(b); continue
         i = _front_index(b)
         if i is None: continue
         if i in poses: raise FileNotFoundError(f'two pose files numbered {i}: {poses[i]}, {f}')
@@ -697,6 +734,7 @@ def discover(pose_path, video_motion_path):
     if not poses:
         raise FileNotFoundError(f'no *front*.csv under {pose_path}')
     missing = sorted(set(vids) - set(poses))
+    empty_pose = []
     if not (set(poses) & set(vids)):
         raise FileNotFoundError(f'no pose CSV matches any clip in {pose_path}')
     extra = sorted(set(poses) - set(vids))
@@ -729,9 +767,25 @@ def discover(pose_path, video_motion_path):
     same = [m for m in mp4s if os.path.splitext(os.path.basename(m))[0] == stem]
     webcam = same[0] if same else (mp4s[0] if len(mp4s) == 1 else None)
 
+    # A header-only pose CSV (extractor started and produced nothing) is ABSENT, not
+    # present-with-zero-rows: left as "present" it contributes no rows yet is never
+    # reported, so the operator sees neither pose data nor a warning.
+    for i, pth in list(poses.items()):
+        try:
+            with open(pth) as fh:
+                fh.readline()
+                if not fh.readline().strip():
+                    poses.pop(i)
+                    if i not in missing:
+                        missing.append(i)
+                    empty_pose.append(os.path.basename(pth))
+        except OSError:
+            pass
+    missing = sorted(missing)
+
     order = sorted(vids)
     part = _participant(vid_dir, [vids[i] for i in order])
-    return dict(clips=order,
+    return dict(clips=order, empty_pose=empty_pose, superseded_pose=superseded,
                 video_paths=[vids[i] for i in order],
                 pose_paths=[poses.get(i) for i in order],
                 clips_without_pose=missing, unindexed_videos=unindexed,
@@ -772,7 +826,8 @@ SUMMARY_COLS = ['session', 'participant', 'n_clips', 'imu_duration_s', 'video_du
                 'T0_s', 'precision_s', 'kappa', 'kappa_margin', 'stopped_contrast',
                 'sync_status', 'pose_coverage', 'off_centre_frac', 'acc_scale',
                 'stationary_frac', 'mount_tilt_deg', 'min_verified_frac', 'deficits',
-                'webcam_matches_imu', 'clips_without_pose', 'usable', 'failed_gates', 'error']
+                'webcam_matches_imu', 'clips_without_pose', 't0_spread_s',
+                't0_consensus_frac', 'usable', 'failed_gates', 'error']
 
 
 def _summary_row(tag, qc, err=None):
@@ -795,10 +850,34 @@ def _summary_row(tag, qc, err=None):
                 min_verified_frac=round(min(vf), 2) if vf else None,
                 deficits=';'.join('-' if d is None else str(d) for d in qc.get('deficit', [])),
                 clips_without_pose=';'.join(str(i) for i in qc.get('clips_without_pose', [])) or None,
+                t0_spread_s=qc.get('sync', {}).get('t0_spread_s'),
+                t0_consensus_frac=qc.get('sync', {}).get('t0_consensus_frac'),
                 webcam_matches_imu=qc.get('webcam', {}).get('matches_imu_rows'),
                 usable=qc.get('usable'),
                 failed_gates=';'.join(k for k, v in qc.get('gates', {}).items() if not v),
                 error=None)
+
+
+def _merge_summary(path, rows):
+    """Update an existing summary in place rather than replacing it.
+
+    A subset run (--sessions, --limit, --force) must not wipe the rows for sessions it
+    did not touch: writing only this run's rows is how a 3-session summary silently
+    became a 1-session summary. Rows from this run win; everything else is preserved.
+    """
+    new = pd.DataFrame(rows).reindex(columns=SUMMARY_COLS)
+    if os.path.exists(path):
+        try:
+            old = pd.read_csv(path, dtype={'session': str, 'participant': str})
+            old = old.reindex(columns=SUMMARY_COLS)
+            # a file that is not a summary at all still parses as a DataFrame; after
+            # reindexing its rows are all-NaN, so drop anything without a session id
+            old = old[old['session'].notna()]
+            keep = old[~old['session'].isin(set(new['session']))]
+            new = pd.concat([keep, new], ignore_index=True)
+        except Exception as e:
+            print(f'  WARNING: could not read existing summary ({e}); it will be replaced')
+    return new.sort_values('session').reset_index(drop=True)
 
 
 def process_one(pose_dir, vm_dir, a, tag=None):
@@ -819,6 +898,11 @@ def process_one(pose_dir, vm_dir, a, tag=None):
     if f.get('unindexed_videos'):
         print(f'  WARNING: clip file(s) with no readable number, EXCLUDED: '
               f'{f["unindexed_videos"]} - check for a filename typo')
+    if f.get('superseded_pose'):
+        print(f'  note   : pose file(s) marked as superseded, ignored: {f["superseded_pose"]}')
+    if f.get('empty_pose'):
+        print(f'  WARNING: pose CSV(s) with a header but NO rows, treated as absent: '
+              f'{f["empty_pose"]} - the extractor produced nothing for that clip')
     if f.get('clips_without_pose'):
         print(f'  note   : clip(s) {f["clips_without_pose"]} have video but NO pose CSV - '
               'kept in the sync signal, excluded from the merge')
@@ -880,6 +964,9 @@ def main(argv=None):
                     help='process only the first N sessions (use for a dry run)')
     ap.add_argument('--skip-existing', action='store_true',
                     help='skip sessions whose _qc.json already exists (resume)')
+    ap.add_argument('--force', action='store_true',
+                    help='reprocess even if the output exists, overriding --skip-existing '
+                         '(use after re-extracting the pose for a session)')
     ap.add_argument('--summary', default=None,
                     help='summary CSV path (default <out>/sessions_summary.csv)')
     a = ap.parse_args(argv)
@@ -918,7 +1005,7 @@ def main(argv=None):
     rows, t_start = [], time.time()
     for i, (name, pdir, vdir) in enumerate(sessions, start=1):
         done = sorted(glob.glob(os.path.join(a.out, f'{name}*_qc.json')))
-        if a.skip_existing and done:
+        if a.skip_existing and done and not a.force:
             print(f'[{i}/{len(sessions)}] {name}: skipped (exists)')
             try:
                 rows.append(_summary_row(name, json.load(open(done[0]))))
@@ -940,17 +1027,18 @@ def main(argv=None):
             rows.append(_summary_row(name, {}, err=f'{type(e).__name__}: {e}'))
         finally:
             gc.collect()
-        pd.DataFrame(rows).reindex(columns=SUMMARY_COLS).to_csv(summary_path, index=False)
+        _merge_summary(summary_path, rows).to_csv(summary_path, index=False)
 
-    df = pd.DataFrame(rows).reindex(columns=SUMMARY_COLS)
+    df = _merge_summary(summary_path, rows)
     df.to_csv(summary_path, index=False)
-    # counted from the table, not accumulated during the loop: sessions reused via
-    # --skip-existing contribute rows without passing through the processing branch
-    n_err = int(df['error'].notna().sum())
-    n_ok = int((df['usable'] == True).sum())
-    print(f'\n{len(df)} sessions: {n_ok} usable, {len(df)-n_ok-n_err} flagged, {n_err} errored '
-          f'in {(time.time()-t_start)/60:.0f} min')
-    print(f'summary -> {summary_path}')
+    # counted from THIS RUN's rows, not the merged table, so a subset run reports what
+    # it actually did; the merged file may hold rows from earlier runs as well
+    run = pd.DataFrame(rows).reindex(columns=SUMMARY_COLS)
+    n_err = int(run['error'].notna().sum())
+    n_ok = int((run['usable'] == True).sum())
+    print(f'\n{len(run)} sessions this run: {n_ok} usable, {len(run)-n_ok-n_err} flagged, '
+          f'{n_err} errored in {(time.time()-t_start)/60:.0f} min')
+    print(f'summary -> {summary_path} ({len(df)} sessions total)')
     return 0 if (n_err == 0 and (n_ok == len(df) or not a.strict)) else 1
 
 
